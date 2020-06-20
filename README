@@ -1,5 +1,10 @@
 quickserve
 
+Quicky serve a dir.
 
 Usage:
-    quickserve <port>
+    quickserve <port> <dir>
+
+
+* port defaults to 8080
+* dir defaults to current dir
