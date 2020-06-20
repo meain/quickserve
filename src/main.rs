@@ -61,6 +61,11 @@ impl<State: Send + Sync + 'static> Middleware<State> for LogMiddleware {
 async fn main() -> Result<()> {
     let port = std::env::args().nth(1).unwrap_or("8080".to_string());
     let dir = std::env::args().nth(2).unwrap_or(".".to_string());
+    if port == "--help" || port == "-h" {
+        println!("quickserve: Quicky serve a dir");
+        println!("Usage: quickserve <port> <dir>");
+        return Ok(())
+    }
     println!("[quickesrv] serving '{}' on port {}", dir, port);
     let mut app = tide::new();
     app.middleware(LogMiddleware::new());
