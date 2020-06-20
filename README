@@ -5,6 +5,10 @@ Quicky serve a dir.
 Usage:
     quickserve <port> <dir>
 
+Installation:
+    - macOS: `brew install meain/meain/quickserve`
+    - cargo: `cargo install quickserve`
+    - manual: download and install release
 
 * port defaults to 8080
 * dir defaults to current dir
