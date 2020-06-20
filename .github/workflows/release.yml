@@ -18,9 +18,6 @@ jobs:
           - os: macos-latest
             artifact_name: quickserve
             asset_name: quickserve-macos-amd64
-          - os: windows-latest
-            artifact_name: quickserve
-            asset_name: quickserve-windows-amd64
 
     steps:
     - uses: hecrj/setup-rust-action@v1
