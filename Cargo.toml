@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Abin Simon <abinsimon10@gmail.com>"]
 edition = "2018"
 
+[profile.release]
+lto = true
+codegen-units = 1
+
 [dependencies]
 tide = "0.11.0"
 async-std = { version = "1.6.0", features = ["attributes"] }
