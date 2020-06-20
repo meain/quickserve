@@ -1,8 +1,16 @@
 [package]
 name = "quickserve"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Abin Simon <abinsimon10@gmail.com>"]
 edition = "2018"
+
+description ="Quickly serve a dir"
+license ="Apache-2.0"
+homepage = "https://github.com/meain/quickserve"
+repository = "https://github.com/meain/quickserve"
+categories = ["command-line-interface"]
+keywords = [ "cli", "http-server"]
+readme = "README"
 
 [profile.release]
 lto = true
