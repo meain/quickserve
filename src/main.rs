@@ -1,31 +1,17 @@
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use tide::http::mime;
-use tide::{After, Before};
-use tide::{Middleware, Next, Request, Response, Result, StatusCode};
+use tide::{Middleware, Next, Request, Result};
 
-// use crate::log;
-// use crate::utils::BoxFuture;
-// use crate::{Middleware, Next, Request};
-
-
-pub(crate) type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 #[derive(Debug, Default, Clone)]
-pub struct LogMiddleware {
-    _priv: (),
-}
+struct LogMiddleware;
 
 impl LogMiddleware {
-    /// Create a new instance of `LogMiddleware`.
-    #[must_use]
     pub fn new() -> Self {
-        Self { _priv: () }
+        Self
     }
 
-    /// Log a request and a response.
     async fn log<'a, State: Send + Sync + 'static>(
         &'a self,
         ctx: Request<State>,
@@ -33,10 +19,6 @@ impl LogMiddleware {
     ) -> crate::Result {
         let path = ctx.url().path().to_owned();
         let method = ctx.method().to_string();
-        // log::info!("<-- Request received", {
-        //     method: method,
-        //     path: path,
-        // });
         let start = std::time::Instant::now();
         match next.run(ctx).await {
             Ok(res) => {
@@ -53,11 +35,11 @@ impl LogMiddleware {
             Err(err) => {
                 println!(
                     "{} {} {} {} {}",
-                    err.to_string(),
                     method,
                     path,
                     err.status(),
                     format!("{:?}", start.elapsed()),
+                    err.to_string(),
                 );
                 Err(err)
             }
@@ -78,9 +60,11 @@ impl<State: Send + Sync + 'static> Middleware<State> for LogMiddleware {
 #[async_std::main]
 async fn main() -> Result<()> {
     let port = std::env::args().nth(1).unwrap_or("8080".to_string());
+    let dir = std::env::args().nth(2).unwrap_or(".".to_string());
+    println!("[quickesrv] serving '{}' on port {}", dir, port);
     let mut app = tide::new();
     app.middleware(LogMiddleware::new());
-    app.at("/").serve_dir(".")?;
+    app.at("/").serve_dir(dir)?;
     app.listen(format!("127.0.0.1:{}", port)).await?;
     Ok(())
 }
