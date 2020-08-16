@@ -1,15 +1,38 @@
+use argh::FromArgs;
 use std::future::Future;
 use std::pin::Pin;
 use tide::{Middleware, Next, Request, Result};
 
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
+#[derive(FromArgs)]
+/// Quickly serve local static files
+struct Opts {
+    /// port to serve at
+    #[argh(option, short = 'p', default = "8080")]
+    port: usize,
+
+    /// host to serve at
+    #[argh(option, short = 'h', default = "String::from(\"localhost\")")]
+    host: String,
+
+    /// level of log output (none, error, all)
+    #[argh(option, default = "String::from(\"all\")")]
+    loglevel: String,
+
+    /// directory to be served, uses '.' by default
+    #[argh(positional, default = "String::from(\".\")")]
+    dir: String,
+}
+
 #[derive(Debug, Default, Clone)]
-struct LogMiddleware;
+struct LogMiddleware {
+    loglevel: String,
+}
 
 impl LogMiddleware {
-    pub fn new() -> Self {
-        Self
+    pub fn new(loglevel: String) -> Self {
+        Self { loglevel }
     }
 
     async fn log<'a, State: Send + Sync + 'static>(
@@ -23,24 +46,28 @@ impl LogMiddleware {
         match next.run(ctx).await {
             Ok(res) => {
                 let status = res.status();
-                println!(
-                    "{} {} {} {}",
-                    method,
-                    path,
-                    status,
-                    format!("{:?}", start.elapsed()),
-                );
+                if self.loglevel == "all" {
+                    println!(
+                        "{} {} {} {}",
+                        method,
+                        path,
+                        status,
+                        format!("{:?}", start.elapsed()),
+                    );
+                }
                 Ok(res)
             }
             Err(err) => {
-                println!(
-                    "{} {} {} {} {}",
-                    method,
-                    path,
-                    err.status(),
-                    format!("{:?}", start.elapsed()),
-                    err.to_string(),
-                );
+                if self.loglevel == "all" || self.loglevel == "error" {
+                    println!(
+                        "{} {} {} {} {}",
+                        method,
+                        path,
+                        err.status(),
+                        format!("{:?}", start.elapsed()),
+                        err.to_string(),
+                    );
+                }
                 Err(err)
             }
         }
@@ -59,17 +86,12 @@ impl<State: Send + Sync + 'static> Middleware<State> for LogMiddleware {
 
 #[async_std::main]
 async fn main() -> Result<()> {
-    let port = std::env::args().nth(1).unwrap_or("8080".to_string());
-    let dir = std::env::args().nth(2).unwrap_or(".".to_string());
-    if port == "--help" || port == "-h" {
-        println!("quickserve: Quicky serve a dir");
-        println!("Usage: quickserve <port> <dir>");
-        return Ok(())
-    }
-    println!("[quickesrv] serving '{}' on port {}", dir, port);
+    let opts: Opts = argh::from_env();
+    println!("[quickesrve] serving '{}' on port {}", opts.dir, opts.port);
+    println!("> http://{}:{}", opts.host, opts.port);
     let mut app = tide::new();
-    app.middleware(LogMiddleware::new());
-    app.at("/").serve_dir(dir)?;
-    app.listen(format!("127.0.0.1:{}", port)).await?;
+    app.middleware(LogMiddleware::new(opts.loglevel));
+    app.at("/").serve_dir(opts.dir)?;
+    app.listen(format!("{}:{}", opts.host, opts.port)).await?;
     Ok(())
 }
