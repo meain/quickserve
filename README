@@ -2,8 +2,17 @@ quickserve
 
 Quicky serve a dir.
 
-Usage:
-    quickserve <port> <dir>
+-------------------------------------------------------------------------
+Usage: quickserve [<dir>] [-p <port>] [-h <host>] [--loglevel <loglevel>]
+
+Quickly serve local static files
+
+Options:
+  -p, --port        port to serve at
+  -h, --host        host to serve at
+  --loglevel        level of log output (none, error, all)
+  --help            display usage information
+-------------------------------------------------------------------------
 
 Installation:
     - macOS: `brew install meain/meain/quickserve`
