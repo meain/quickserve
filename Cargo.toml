@@ -17,6 +17,6 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-tide = "0.11.0"
+tide = "0.16.0"
 async-std = { version = "1.6.0", features = ["attributes"] }
 argh = "0.1.3"
