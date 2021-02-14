@@ -1,9 +1,7 @@
-use argh::FromArgs;
-use std::future::Future;
-use std::pin::Pin;
-use tide::{Middleware, Next, Request, Result};
+use std::path::Path;
 
-type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+use argh::FromArgs;
+use tide::{Middleware, Next, Request, Result};
 
 #[derive(FromArgs)]
 /// Quickly serve local static files
@@ -25,62 +23,38 @@ struct Opts {
     dir: String,
 }
 
-#[derive(Debug, Default, Clone)]
-struct LogMiddleware {
-    loglevel: String,
+struct Logger {
+    log_level: String,
 }
 
-impl LogMiddleware {
-    pub fn new(loglevel: String) -> Self {
-        Self { loglevel }
+impl Logger {
+    pub fn new(log_level: String) -> Self {
+        Self { log_level }
     }
-
-    async fn log<'a, State: Send + Sync + 'static>(
-        &'a self,
-        ctx: Request<State>,
-        next: Next<'a, State>,
-    ) -> crate::Result {
-        let path = ctx.url().path().to_owned();
-        let method = ctx.method().to_string();
+}
+#[tide::utils::async_trait]
+impl<State: Clone + Send + Sync + 'static> Middleware<State> for Logger {
+    async fn handle(&self, req: Request<State>, next: Next<'_, State>) -> Result {
         let start = std::time::Instant::now();
-        match next.run(ctx).await {
-            Ok(res) => {
-                let status = res.status();
-                if self.loglevel == "all" {
-                    println!(
-                        "{} {} {} {}",
-                        method,
-                        path,
-                        status,
-                        format!("{:?}", start.elapsed()),
-                    );
-                }
-                Ok(res)
-            }
-            Err(err) => {
-                if self.loglevel == "all" || self.loglevel == "error" {
-                    println!(
-                        "{} {} {} {} {}",
-                        method,
-                        path,
-                        err.status(),
-                        format!("{:?}", start.elapsed()),
-                        err.to_string(),
-                    );
-                }
-                Err(err)
+        let path = req.url().path().to_owned();
+        let method = req.method().to_string();
+        let res = next.run(req).await;
+        let status = res.status();
+        if self.log_level == "all" || (self.log_level == "error" && !status.is_success()) {
+            if status.is_success() {
+                println!("{} {} {} {:?}", method, path, status, start.elapsed());
+            } else {
+                println!(
+                    "{} {} {} {:?} {}",
+                    method,
+                    path,
+                    status,
+                    start.elapsed(),
+                    status.canonical_reason()
+                );
             }
         }
-    }
-}
-
-impl<State: Send + Sync + 'static> Middleware<State> for LogMiddleware {
-    fn handle<'a>(
-        &'a self,
-        ctx: Request<State>,
-        next: Next<'a, State>,
-    ) -> BoxFuture<'a, crate::Result> {
-        Box::pin(async move { self.log(ctx, next).await })
+        Ok(res)
     }
 }
 
@@ -90,8 +64,12 @@ async fn main() -> Result<()> {
     println!("[quickesrve] serving '{}' on port {}", opts.dir, opts.port);
     println!("> http://{}:{}", opts.host, opts.port);
     let mut app = tide::new();
-    app.middleware(LogMiddleware::new(opts.loglevel));
-    app.at("/").serve_dir(opts.dir)?;
+    app.with(Logger::new(opts.loglevel));
+    app.at("/").serve_dir(&opts.dir)?;
+    let index_file = Path::new(&opts.dir).join("index.html");
+    if index_file.exists() {
+        app.at("/").serve_file(index_file)?;
+    }
     app.listen(format!("{}:{}", opts.host, opts.port)).await?;
     Ok(())
 }
