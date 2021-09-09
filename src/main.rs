@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::Path;
 
 use argh::FromArgs;
@@ -58,6 +59,15 @@ impl<State: Clone + Send + Sync + 'static> Middleware<State> for Logger {
     }
 }
 
+async fn index_file(_: Request<()>) -> tide::Result {
+    let index_file = Path::new(".").join("index.html");
+    Ok(fs::read_to_string(index_file)
+        .map_err(|_| {
+            tide::Error::from_str(tide::StatusCode::NotFound, "Unable to find index file")
+        })?
+        .into())
+}
+
 #[async_std::main]
 async fn main() -> Result<()> {
     let opts: Opts = argh::from_env();
@@ -65,11 +75,8 @@ async fn main() -> Result<()> {
     println!("> http://{}:{}", opts.host, opts.port);
     let mut app = tide::new();
     app.with(Logger::new(opts.loglevel));
+    app.at("/").get(index_file);
     app.at("/").serve_dir(&opts.dir)?;
-    let index_file = Path::new(&opts.dir).join("index.html");
-    if index_file.exists() {
-        app.at("/").serve_file(index_file)?;
-    }
     app.listen(format!("{}:{}", opts.host, opts.port)).await?;
     Ok(())
 }
